@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "MMNetMon (Package)": {
+      "commandName": "MsixPackage"
+    },
+    "MMNetMon (Unpackaged)": {
+      "commandName": "Project"
+    }
+  }
+}

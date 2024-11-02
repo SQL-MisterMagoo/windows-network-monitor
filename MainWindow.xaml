@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Window
+    x:Class="MMNetMon.MainWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:MMNetMon"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"  
+    mc:Ignorable="d">
+
+  <Frame Name="frame1" Background="Transparent">
+	<Grid>
+	  <Grid.RowDefinitions>
+		<RowDefinition Height="0" />
+		<RowDefinition Height="*" />
+	  </Grid.RowDefinitions>
+	  <Grid.ColumnDefinitions>
+		<ColumnDefinition Width="90"/>
+		<ColumnDefinition Width="*"/>
+	  </Grid.ColumnDefinitions>
+	  <!-- Use a drop down to select from a collection of strings called Networks-->
+	  <ComboBox Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="2" Name="cb1" ItemsSource="{Binding Networks}" SelectedIndex="0" SelectionChanged="cb1_SelectionChanged" FontSize="10"/>
+	  <ItemsRepeater Grid.Row="1" Grid.Column="1"  Name="itemsRepeater" ItemsSource="{x:Bind _statsDown}" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
+		<ItemsRepeater.Layout>
+		  <StackLayout Orientation="Horizontal" />
+		</ItemsRepeater.Layout>
+		<ItemsRepeater.ItemTemplate>
+		  <DataTemplate x:DataType="local:DataPoint">
+			<Line X1="1" X2="1" Y1="{x:Bind ScaledY1}" Y2="{x:Bind ScaledY2}" Stroke="LimeGreen" StrokeThickness="1" Width="2" UseLayoutRounding="True"/>
+		  </DataTemplate>
+		</ItemsRepeater.ItemTemplate>
+	  </ItemsRepeater>
+	  <TextBlock Grid.Row="1" Grid.Column="0" Name="tbAverageDown" HorizontalAlignment="Center" VerticalAlignment="Center" FontWeight="ExtraBold" />
+	</Grid>
+  </Frame>
+</Window>
