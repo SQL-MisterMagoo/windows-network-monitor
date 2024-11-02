@@ -19,7 +19,7 @@
 		<ColumnDefinition Width="*"/>
 	  </Grid.ColumnDefinitions>
 	  <!-- Use a drop down to select from a collection of strings called Networks-->
-	  <ComboBox Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="2" Name="cb1" ItemsSource="{Binding Networks}" SelectedIndex="0" SelectionChanged="cb1_SelectionChanged" FontSize="10"/>
+	  <ComboBox Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="2" Name="networkSelector" ItemsSource="{Binding Networks}" SelectedIndex="0" SelectionChanged="cb1_SelectionChanged" FontSize="10"/>
 	  <ItemsRepeater Grid.Row="1" Grid.Column="1"  Name="itemsRepeater" ItemsSource="{x:Bind _statsDown}" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
 		<ItemsRepeater.Layout>
 		  <StackLayout Orientation="Horizontal" />
