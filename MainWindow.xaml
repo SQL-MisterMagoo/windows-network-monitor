@@ -8,29 +8,26 @@
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"  
     mc:Ignorable="d">
 
-  <Frame Name="frame1" Background="Transparent">
-	<Grid>
-	  <Grid.RowDefinitions>
-		<RowDefinition Height="0" />
-		<RowDefinition Height="*" />
-	  </Grid.RowDefinitions>
-	  <Grid.ColumnDefinitions>
-		<ColumnDefinition Width="90"/>
-		<ColumnDefinition Width="*"/>
-	  </Grid.ColumnDefinitions>
-	  <!-- Use a drop down to select from a collection of strings called Networks-->
-	  <ComboBox Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="2" Name="networkSelector" ItemsSource="{Binding Networks}" SelectedIndex="0" SelectionChanged="cb1_SelectionChanged" FontSize="10"/>
-	  <ItemsRepeater Grid.Row="1" Grid.Column="1"  Name="itemsRepeater" ItemsSource="{x:Bind _statsDown}" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
-		<ItemsRepeater.Layout>
-		  <StackLayout Orientation="Horizontal" />
-		</ItemsRepeater.Layout>
-		<ItemsRepeater.ItemTemplate>
-		  <DataTemplate x:DataType="local:DataPoint">
-			<Line X1="1" X2="1" Y1="{x:Bind ScaledY1}" Y2="{x:Bind ScaledY2}" Stroke="LimeGreen" StrokeThickness="1" Width="2" UseLayoutRounding="True"/>
-		  </DataTemplate>
-		</ItemsRepeater.ItemTemplate>
-	  </ItemsRepeater>
-	  <TextBlock Grid.Row="1" Grid.Column="0" Name="tbAverageDown" HorizontalAlignment="Center" VerticalAlignment="Center" FontWeight="ExtraBold" />
+	<Grid Padding="0">
+		<Grid.RowDefinitions>
+			<RowDefinition Height="0" />
+			<RowDefinition Height="*" />
+		</Grid.RowDefinitions>
+		<Grid.ColumnDefinitions>
+			<ColumnDefinition Width="90"/>
+			<ColumnDefinition Width="*"/>
+		</Grid.ColumnDefinitions>
+		<ComboBox Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="2" Name="networkSelector" ItemsSource="{Binding Networks}" SelectedIndex="0" SelectionChanged="NetworkSelected" FontSize="10"/>
+		<TextBlock Grid.Row="1" Grid.Column="0" Name="tbAverageDown" HorizontalAlignment="Center" VerticalAlignment="Center" FontWeight="ExtraBold" />
+		<ItemsRepeater Grid.Row="1" Grid.Column="1" Name="chart" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
+			<ItemsRepeater.Layout>
+				<StackLayout Orientation="Horizontal"/>
+			</ItemsRepeater.Layout>
+			<ItemsRepeater.ItemTemplate>
+				<DataTemplate x:DataType="local:DataPoint">
+					<Line X1="1" X2="1" Y1="{x:Bind ScaledY1}" Y2="{x:Bind ScaledY2}" Stroke="{ThemeResource SystemControlForegroundAccentBrush}" StrokeThickness="1" Width="2" UseLayoutRounding="True"/>
+				</DataTemplate>
+			</ItemsRepeater.ItemTemplate>
+		</ItemsRepeater>
 	</Grid>
-  </Frame>
 </Window>

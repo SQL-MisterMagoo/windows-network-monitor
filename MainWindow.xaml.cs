@@ -3,13 +3,16 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Linq;
-using System.Threading;
+using System.Text.Json;
 using System.Threading.Tasks;
-using System.Timers;
+using Microsoft.UI.Composition.SystemBackdrops;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Media;
+using Windows.Graphics;
+using Windows.Storage;
 
 // To learn more about WinUI, the WinUI project structure,
 // and more about our project templates, see: http://aka.ms/winui-project-info.
@@ -19,97 +22,125 @@ namespace MMNetMon;
 /// <summary>
 /// An empty window that can be used on its own or navigated to within a Frame.
 /// </summary>
-public sealed partial class MainWindow : Window, INotifyPropertyChanged
+public sealed partial class MainWindow : Window
 {
-	private const string CategoryName = "Network Interface";
-	public event PropertyChangedEventHandler PropertyChanged;
-	private ObservableCollection<string> _networks = [];
-	private string _selectedNetwork;
-	PerformanceCounter netSent = null!;
-	PerformanceCounter netReceived = null!;
-	private DispatcherQueueTimer timer;
-	private string _upText;
-	private string _downText = "⌛";
-	private LimitedQueue<DataPoint> _statsDown = new(40);
-	private LimitedQueue<DataPoint> _statsUp = new(30);
-	float MaximumValueDown => _statsDown?.MaxBy(d => d.Value)?.Value ?? 100;
-	float AverageValueDown => _statsDown?.Reverse().Take(3).Average(d => d.Value) ?? 100;
-	float GetMaximumDownValueOrDefault() => (float)(MaximumValueDown > 0 ? MaximumValueDown : itemsRepeater.ActualHeight);
-	float GetMaxHeightToBeRendered() => (float)itemsRepeater.ActualHeight;
-	DataPoint[] GridData => _statsDown.ToArray();
-	public ObservableCollection<string> Networks
-	{
-		get => _networks;
-		set
-		{
-			if (_networks != value)
-			{
-				_networks = value;
-				OnPropertyChanged(nameof(Networks));
-			}
-		}
-	}
+	const string CategoryName = "Network Interface";
+	const int firstColWidth = 90;
+	readonly ApplicationDataContainer localSettings;
 
-	public string SelectedNetwork
-	{
-		get => _selectedNetwork;
-		set
-		{
-			if (_selectedNetwork != value)
-			{
-				_selectedNetwork = value;
-				OnPropertyChanged(nameof(SelectedNetwork));
-			}
-		}
-	}
-	public string UpText
-	{
-		get => _upText;
-		set
-		{
-			if (_upText != value)
-			{
-				_upText = value;
-				OnPropertyChanged(nameof(UpText));
-			}
-		}
-	}
-	public string DownText
-	{
-		get => _downText;
-		set
-		{
-			if (_downText != value)
-			{
-				_downText = value;
-				OnPropertyChanged(nameof(DownText));
-			}
-		}
-	}
+	DispatcherQueueTimer statsTimer;
+	DispatcherQueueTimer configTimer;
+	LimitedQueue<DataPoint> _statsDown = new(20);
+	PerformanceCounter netReceived = null!;
+	ToolTip toolTip;
+	string[] networks = [];
+	readonly JsonSerializerOptions jsonOptions = new() { IncludeFields = true };
+
+	string SelectedNetwork { get; set; }
 
 	public MainWindow()
 	{
 		this.InitializeComponent();
-		this.AppWindow.TitleBar.ExtendsContentIntoTitleBar = true;
-		AppWindow.TitleBar.PreferredHeightOption = TitleBarHeightOption.Collapsed;
+		localSettings = ApplicationData.Current.LocalSettings;
+
 		ConfigureRenderer();
-		networkSelector.DataContext = this;
-		AppWindow.Changed += (s, e) =>
+		ConfigureUIElements();
+		ConfigureWindow();
+		ConfigureTimers();
+		ReadSettings();
+	}
+
+	void ConfigureRenderer()
+	{
+		if (AppWindow.Presenter is OverlappedPresenter presenter)
 		{
-			AppWindow.TitleBar.SetDragRectangles([new(0, 0, (int)AppWindow.Size.Width, (int)AppWindow.Size.Height)]);
-		};
+			presenter.IsMinimizable = false;
+			presenter.IsMaximizable = false;
+			presenter.IsAlwaysOnTop = true;
+			presenter.IsResizable = true;
+		}
+	}
+
+	void ConfigureUIElements()
+	{
+		networkSelector.DataContext = this;
 		tbAverageDown.PointerPressed += (s, e) =>
 		{
 			networkSelector.IsDropDownOpen = true;
 		};
-		timer = DispatcherQueue.CreateTimer();
-		timer.Interval = TimeSpan.FromMilliseconds(250);
-		timer.Tick += Timer_Tick;
-		timer.Start();
-		AppWindow.Resize(new(210, (int)tbAverageDown.ActualHeight + 20));
+		if (toolTip is null)
+		{
+			toolTip = new ToolTip();
+			ToolTipService.SetToolTip(Content, toolTip);
+		}
 	}
 
-	private async void Timer_Tick(DispatcherQueueTimer sender, object args)
+	void ConfigureWindow()
+	{
+		AppWindow.SetIcon("favicon.ico");
+		AppWindow.TitleBar.ExtendsContentIntoTitleBar = true;
+		AppWindow.TitleBar.PreferredHeightOption = TitleBarHeightOption.Collapsed;
+		SystemBackdrop = new MicaBackdrop()
+		{
+			Kind = MicaKind.Base
+		};
+		AppWindow.Changed += (s, e) =>
+		{
+			if (e.DidSizeChange)
+			{
+				AppWindow.TitleBar.SetDragRectangles([new(0, 0, (int)AppWindow.Size.Width, (int)AppWindow.Size.Height)]);				
+				localSettings.Values["WindowSize"] = JsonSerializer.Serialize(AppWindow.Size, jsonOptions);
+			}
+			if (e.DidPositionChange)
+				localSettings.Values["WindowPosition"] = JsonSerializer.Serialize(AppWindow.Position, jsonOptions);
+		};
+		if (localSettings.Values.TryGetValue("WindowSize", out object size))
+		{
+			SizeInt32 savedSize = JsonSerializer.Deserialize<SizeInt32>(size.ToString(), jsonOptions);
+			if (savedSize.Width > 0 && savedSize.Height > 0)
+			{
+				AppWindow.Resize(savedSize);
+			}
+			else
+			{
+				AppWindow.Resize(new(GetWindowPreferredWidth(), (int)tbAverageDown.ActualHeight + 20));
+			}
+		}
+		else
+		{
+			AppWindow.Resize(new(GetWindowPreferredWidth(), (int)tbAverageDown.ActualHeight + 20));
+		}
+		if (localSettings.Values.TryGetValue("WindowPosition", out object position))
+		{
+			PointInt32 savedPosition = JsonSerializer.Deserialize<PointInt32>(position.ToString(), jsonOptions);
+			if (savedPosition.X > 0 && savedPosition.Y > 0)
+			{
+				AppWindow.Move(savedPosition);
+			}
+		}
+	}
+
+	void ConfigureTimers()
+	{
+		statsTimer = DispatcherQueue.CreateTimer();
+		statsTimer.Interval = TimeSpan.FromMilliseconds(1000);
+		statsTimer.Tick += HandleTimerUpdates;
+		statsTimer.Start();
+		configTimer = DispatcherQueue.CreateTimer();
+		configTimer.Interval = TimeSpan.FromMilliseconds(500);
+		configTimer.Tick += DiscoverNetworks;
+		configTimer.Start();
+	}
+
+	void ReadSettings()
+	{
+		if (localSettings.Values.TryGetValue("Network", out object network))
+		{
+			SelectedNetwork = network.ToString();
+		}
+	}
+
+	void HandleTimerUpdates(DispatcherQueueTimer sender, object args)
 	{
 		if (SelectedNetwork is string { Length: > 0 } network)
 		{
@@ -118,80 +149,38 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
 				float download = netReceived.NextValue();
 				_statsDown.Enqueue(new((int)download, GetMaximumDownValueOrDefault, GetMaxHeightToBeRendered));
 				tbAverageDown.Text = FormatSpeed(AverageValueDown);
-				itemsRepeater.ItemsSource = GridData;
-				itemsRepeater.UpdateLayout();
-				ConfigureRenderer();
+				chart.ItemsSource = ChartData;
+				chart.UpdateLayout();
+				toolTip.Content = $"Chart Scale: {FormatSpeed(MaximumValueDown)}";
+				ConfigureRenderer(); // make sure we really are on top as much as possible
 			}
 			else
 			{
+				tbAverageDown.Text = "Connecting...";
+				tbAverageDown.UpdateLayout();
 				netReceived = new(CategoryName, "Bytes Received/sec", network);
 			}
-			return;
-		}
-		if (_networks is null || _networks is [])
-		{
-			sender.Stop();
-			tbAverageDown.Text = "Searching...";
-			tbAverageDown.UpdateLayout();
-			await DiscoverNetworks();
-			timer.Interval = TimeSpan.FromSeconds(1);
-			sender.Start();
 		}
 	}
 
-	private void ConfigureRenderer()
+	void DiscoverNetworks(DispatcherQueueTimer timer, object args)
 	{
-		if (AppWindow.Presenter is OverlappedPresenter presenter)
-		{
-			presenter.IsMinimizable = false;
-			presenter.IsMaximizable = false;
-			presenter.IsAlwaysOnTop = true;
-		}
-	}
-
-	async Task DiscoverNetworks()
-	{
-		await Task.Yield();
-		UpText = "⌛";
-		DownText = "⌛";
-		await Task.Yield();
-		if (Networks is null || Networks.Count == 0)
+		timer.Stop();
+		if (networks is null || networks.Length == 0)
 		{
 			PerformanceCounterCategory category = new PerformanceCounterCategory(CategoryName);
-			Networks = new(category.GetInstanceNames());
+			networks = category.GetInstanceNames();
+			networkSelector.ItemsSource = networks;
+			networkSelector.UpdateLayout();
 		}
 	}
-	private void cb1_SelectionChanged(object sender, SelectionChangedEventArgs e)
+	void NetworkSelected(object sender, SelectionChangedEventArgs e)
 	{
 		SelectedNetwork = networkSelector.SelectedItem.ToString();
-		//if (networkSelector.SelectedItem != null)
-		//{
-		//	if (timer is PeriodicTimer t) t.Dispose();
-		//	netSent = new(CategoryName, "Bytes Sent/sec", networkSelector.SelectedItem.ToString());
-		//	netReceived = new(CategoryName, "Bytes Received/sec", networkSelector.SelectedItem.ToString());
-		//	timer = new PeriodicTimer(TimeSpan.FromSeconds(1));
-		//	//Windows.Graphics.RectInt32 windowRect = new(AppWindow.Position.X, AppWindow.Position.Y, AppWindow.Size.Width, AppWindow.Size.Height);
-		//	//var screenHeight = DisplayArea.GetFromRect(windowRect, DisplayAreaFallback.Nearest).OuterBounds.Height;
-		//	while (await timer.WaitForNextTickAsync())
-		//	{
-		//		float upload = netSent.NextValue();
-		//		_statsUp.Enqueue(new((int)upload,GetMaximumDownValueOrDefault,GetMaxHeightToBeRendered));
-		//		float download = netReceived.NextValue();
-		//		_statsDown.Enqueue(new((int)download, GetMaximumDownValueOrDefault, GetMaxHeightToBeRendered));
-		//		tbAverageDown.Text = FormatSpeed(AverageValueDown);
-		//		itemsRepeater.ItemsSource = GridData;
-		//		itemsRepeater.UpdateLayout();
-		//		ConfigureRenderer();
-		//	}
-		//}
-	}
-	private void OnPropertyChanged(string propertyName)
-	{
-		PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+		localSettings.Values["Network"] = SelectedNetwork;
 	}
 
-	// function to convert a number representing bytes/sec to a human-readable string
-	private string FormatSpeed(float value)
+	string FormatSpeed(float value)
 	{
 		if (value >= 1_000_000)
 		{
@@ -206,15 +195,11 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
 			return value.ToString("F2") + " B/s";
 		}
 	}
-}
-public class DataPoint(int Value, Func<float> getMax, Func<float> containerHeight)
-{
-	private readonly Func<float> getMax = getMax;
-	private readonly float gotMax = (getMax() is { } m && m > 0f) ? containerHeight() * Value / getMax() : 0f;
-	private readonly Func<float> containerHeight = containerHeight;
 
-	public float Value { get; } = Value;
-	public float ScaledValue => (getMax() is { } m && m > 0f) ? containerHeight() * Value / getMax() : 0f;
-	public float ScaledY1 => containerHeight();
-	public float ScaledY2 => containerHeight() - ScaledValue;
+	float MaximumValueDown => _statsDown?.MaxBy(d => d.Value)?.Value ?? 100;
+	float AverageValueDown => _statsDown?.Reverse().Take(3).Average(d => d.Value) ?? 100;
+	float GetMaximumDownValueOrDefault() => (float)(MaximumValueDown > 0 ? MaximumValueDown : chart.ActualHeight);
+	float GetMaxHeightToBeRendered() => (float)chart.ActualHeight;
+	int GetWindowPreferredWidth() => (int)(firstColWidth + _statsDown.Limit * 4 + 6);
+	DataPoint[] ChartData => _statsDown.ToArray();
 }
