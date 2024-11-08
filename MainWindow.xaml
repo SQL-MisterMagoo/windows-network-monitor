@@ -18,14 +18,27 @@
 			<ColumnDefinition Width="*"/>
 		</Grid.ColumnDefinitions>
 		<ComboBox Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="2" Name="networkSelector" ItemsSource="{Binding Networks}" SelectedIndex="0" SelectionChanged="NetworkSelected" FontSize="10"/>
-		<TextBlock Grid.Row="1" Grid.Column="0" Name="tbAverageDown" HorizontalAlignment="Center" VerticalAlignment="Center" FontWeight="ExtraBold" />
-		<ItemsRepeater Grid.Row="1" Grid.Column="1" Name="chart" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
+		<StackPanel Orientation="Vertical" Grid.Row="1" Grid.Column="0" VerticalAlignment="Center" >
+			<TextBlock Name="tbAverageUp" HorizontalAlignment="Center" VerticalAlignment="Center"  />
+			<TextBlock Name="tbAverageDown" HorizontalAlignment="Center" VerticalAlignment="Center" FontWeight="ExtraBold" />
+		</StackPanel>
+		<ItemsRepeater Grid.Row="1" Grid.Column="1" Name="chartDown" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
 			<ItemsRepeater.Layout>
 				<StackLayout Orientation="Horizontal"/>
 			</ItemsRepeater.Layout>
 			<ItemsRepeater.ItemTemplate>
 				<DataTemplate x:DataType="local:DataPoint">
-					<Line X1="1" X2="1" Y1="{x:Bind ScaledY1}" Y2="{x:Bind ScaledY2}" Stroke="{ThemeResource SystemControlForegroundAccentBrush}" StrokeThickness="1" Width="2" UseLayoutRounding="True"/>
+					<Line X1="1" X2="1" Y1="{x:Bind ScaledY1}" Y2="{x:Bind ScaledY2}" Stroke="{ThemeResource AccentAAFillColorDefaultBrush}" StrokeThickness="1" Width="2" UseLayoutRounding="True"/>
+				</DataTemplate>
+			</ItemsRepeater.ItemTemplate>
+		</ItemsRepeater>
+		<ItemsRepeater Grid.Row="1" Grid.Column="1" Name="chartUp" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
+			<ItemsRepeater.Layout>
+				<StackLayout Orientation="Horizontal"/>
+			</ItemsRepeater.Layout>
+			<ItemsRepeater.ItemTemplate>
+				<DataTemplate x:DataType="local:DataPoint">
+					<Line X1="2" X2="2" Y1="{x:Bind ScaledY1}" Y2="{x:Bind ScaledY2}" Stroke="{ThemeResource AccentAAFillColorSecondaryBrush}" StrokeThickness="1" Width="2" UseLayoutRounding="True"/>
 				</DataTemplate>
 			</ItemsRepeater.ItemTemplate>
 		</ItemsRepeater>

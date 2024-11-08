@@ -1,10 +1,7 @@
 ﻿using System;
-using System.Collections.ObjectModel;
-using System.ComponentModel;
 using System.Diagnostics;
 using System.Linq;
 using System.Text.Json;
-using System.Threading.Tasks;
 using Microsoft.UI.Composition.SystemBackdrops;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Windowing;
@@ -30,8 +27,10 @@ public sealed partial class MainWindow : Window
 
 	DispatcherQueueTimer statsTimer;
 	DispatcherQueueTimer configTimer;
-	LimitedQueue<DataPoint> _statsDown = new(20);
+	LimitedQueue<DataPoint> _statsDown = new(40);
+	LimitedQueue<DataPoint> _statsUp = new(40);
 	PerformanceCounter netReceived = null!;
+	PerformanceCounter netSent = null!;
 	ToolTip toolTip;
 	string[] networks = [];
 	readonly JsonSerializerOptions jsonOptions = new() { IncludeFields = true };
@@ -88,7 +87,7 @@ public sealed partial class MainWindow : Window
 		{
 			if (e.DidSizeChange)
 			{
-				AppWindow.TitleBar.SetDragRectangles([new(0, 0, (int)AppWindow.Size.Width, (int)AppWindow.Size.Height)]);				
+				AppWindow.TitleBar.SetDragRectangles([new(0, 0, (int)AppWindow.Size.Width, (int)AppWindow.Size.Height)]);
 				localSettings.Values["WindowSize"] = JsonSerializer.Serialize(AppWindow.Size, jsonOptions);
 			}
 			if (e.DidPositionChange)
@@ -147,12 +146,11 @@ public sealed partial class MainWindow : Window
 			if (netReceived?.InstanceName == network)
 			{
 				float download = netReceived.NextValue();
-				_statsDown.Enqueue(new((int)download, GetMaximumDownValueOrDefault, GetMaxHeightToBeRendered));
+				_statsDown.Enqueue(new((int)download, GetMaximumValueOrDefault, GetMaxHeightToBeRendered));
 				tbAverageDown.Text = FormatSpeed(AverageValueDown);
-				chart.ItemsSource = ChartData;
-				chart.UpdateLayout();
+				chartDown.ItemsSource = ChartDownData;
+				chartDown.UpdateLayout();
 				toolTip.Content = $"Chart Scale: {FormatSpeed(MaximumValueDown)}";
-				ConfigureRenderer(); // make sure we really are on top as much as possible
 			}
 			else
 			{
@@ -160,6 +158,19 @@ public sealed partial class MainWindow : Window
 				tbAverageDown.UpdateLayout();
 				netReceived = new(CategoryName, "Bytes Received/sec", network);
 			}
+			if (netSent?.InstanceName == network)
+			{
+				float upload = netSent.NextValue();
+				_statsUp.Enqueue(new((int)upload, GetMaximumValueOrDefault, GetMaxHeightToBeRendered));
+				tbAverageUp.Text = FormatSpeed(AverageValueUp);
+				chartUp.ItemsSource = ChartUpData;
+				chartUp.UpdateLayout();
+			}
+			else
+			{
+				netSent = new(CategoryName, "Bytes Sent/sec", network);
+			}
+			ConfigureRenderer(); // make sure we really are on top as much as possible
 		}
 	}
 
@@ -197,9 +208,14 @@ public sealed partial class MainWindow : Window
 	}
 
 	float MaximumValueDown => _statsDown?.MaxBy(d => d.Value)?.Value ?? 100;
+	float MaximumValueUp => _statsUp?.MaxBy(d => d.Value)?.Value ?? 100;
 	float AverageValueDown => _statsDown?.Reverse().Take(3).Average(d => d.Value) ?? 100;
-	float GetMaximumDownValueOrDefault() => (float)(MaximumValueDown > 0 ? MaximumValueDown : chart.ActualHeight);
-	float GetMaxHeightToBeRendered() => (float)chart.ActualHeight;
+	float AverageValueUp => _statsUp?.Reverse().Take(3).Average(d => d.Value) ?? 100;
+	float GetMaximumDownValueOrDefault() => (float)(MaximumValueDown > 0 ? MaximumValueDown : chartDown.ActualHeight);
+	float GetMaximumUpValueOrDefault() => (float)(MaximumValueUp > 0 ? MaximumValueUp : chartUp.ActualHeight);
+	float GetMaximumValueOrDefault() => (float)Math.Max(GetMaximumDownValueOrDefault(), GetMaximumUpValueOrDefault());
+	float GetMaxHeightToBeRendered() => (float)chartDown.ActualHeight;
 	int GetWindowPreferredWidth() => (int)(firstColWidth + _statsDown.Limit * 4 + 6);
-	DataPoint[] ChartData => _statsDown.ToArray();
+	DataPoint[] ChartDownData => _statsDown.ToArray();
+	DataPoint[] ChartUpData => _statsUp.ToArray();
 }
