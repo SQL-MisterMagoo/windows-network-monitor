@@ -24,21 +24,23 @@
 		</StackPanel>
 		<ItemsRepeater Grid.Row="1" Grid.Column="1" Name="chartDown" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
 			<ItemsRepeater.Layout>
-				<StackLayout Orientation="Horizontal"/>
+				<StackLayout Orientation="Horizontal" />
 			</ItemsRepeater.Layout>
 			<ItemsRepeater.ItemTemplate>
 				<DataTemplate x:DataType="local:DataPoint">
-					<Line X1="1" X2="1" Y1="{x:Bind ScaledY1}" Y2="{x:Bind ScaledY2}" Stroke="{ThemeResource AccentAAFillColorDefaultBrush}" StrokeThickness="1" Width="2" UseLayoutRounding="True"/>
+					<Line X1="2" X2="2" Y1="{x:Bind ScaledY1}" Y2="{x:Bind ScaledY2}" Stroke="{ThemeResource AccentAAFillColorDefaultBrush}" StrokeThickness="1" Width="2" UseLayoutRounding="True"/>
 				</DataTemplate>
 			</ItemsRepeater.ItemTemplate>
 		</ItemsRepeater>
 		<ItemsRepeater Grid.Row="1" Grid.Column="1" Name="chartUp" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
 			<ItemsRepeater.Layout>
-				<StackLayout Orientation="Horizontal"/>
+				<StackLayout Orientation="Horizontal" Spacing="1"/>
 			</ItemsRepeater.Layout>
 			<ItemsRepeater.ItemTemplate>
 				<DataTemplate x:DataType="local:DataPoint">
-					<Line X1="2" X2="2" Y1="{x:Bind ScaledY1}" Y2="{x:Bind ScaledY2}" Stroke="{ThemeResource AccentAAFillColorSecondaryBrush}" StrokeThickness="1" Width="2" UseLayoutRounding="True"/>
+					<Line X1="1" X2="1" Y1="{x:Bind ScaledY1}" Y2="{x:Bind ScaledY2}" 
+								Stroke="{ThemeResource AccentAAFillColorSecondaryBrush}" 
+								StrokeThickness="1" Width="1" UseLayoutRounding="True"/>
 				</DataTemplate>
 			</ItemsRepeater.ItemTemplate>
 		</ItemsRepeater>
